@@ -37,16 +37,16 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup LLVM 10 prebuilt (URL corect cu ?format=tar)
+      # 4️⃣ Download and setup LLVM 10 prebuilt
       - name: Setup LLVM 10 toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
           wget -qO llvm.tar.xz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz?format=tar"
           tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
-          export PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH
-          echo "LLVM 10 toolchain ready"
           ls -l $TOOLCHAIN_PATH/clang-r363841c/bin/clang
+          echo "PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+          echo "LLVM 10 toolchain ready"
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
@@ -70,7 +70,7 @@ jobs:
       # 8️⃣ Build kernel using LLVM
       - name: Build kernel
         run: |
-          make O=out ARCH=arm64 -j$(nproc)
+          make O=out ARCH=arm64 CC=clang -j$(nproc)
         working-directory: ./kernel
 
       # 9️⃣ Upload kernel image
