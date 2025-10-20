@@ -1,9 +1,10 @@
-[  {
+[
+  {
     "kernelSource": {
       "name": "miku-KernelSU",
-      "repo": "https://github.com/PhamtomK12/kernel_xiaomi_odin",
-      "branch": "TDA",
-      "device": "odin"
+      "repo": "https://github.com/Linux4/samsung_kernel",
+      "branch": "SM-G770F",
+      "device": "g770f"
     },
     "withKernelSU": true,
     "toolchains": [
