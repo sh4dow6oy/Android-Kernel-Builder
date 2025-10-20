@@ -41,9 +41,6 @@ jobs:
       - name: Configure kernel
         run: make O=out ARCH=arm64 ${{ matrix.repo.config }}
         working-directory: ./kernel
-        
-      - name: Prepare kernel directory
-        run: mkdir -p kernel && cp -r <source>/* kernel/        
 
       - name: Build kernel
         run: make O=out ARCH=arm64 -j$(nproc)
