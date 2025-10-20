@@ -14,8 +14,12 @@ jobs:
 
     steps:
     # 1️⃣ Checkout repository
-    - name: Checkout kernel source
-      uses: actions/checkout@v3
+      - name: Checkout kernel source
+        uses: actions/checkout@v3
+        with:
+          repository: sh4dow6oy/samsung_kernel
+          ref: SM-G770F
+          submodules: recursive
 
     # 2️⃣ Install dependencies
     - name: Install dependencies
