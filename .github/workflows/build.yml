@@ -1,90 +1,76 @@
-name: Build Samsung Kernel
+name: Build Android Kernel
 
 on:
   workflow_dispatch:
     inputs:
       model:
-        description: 'Device model (e.g., g770f)'
+        description: 'Device model (ex: g770f)'
         required: true
         default: g770f
-      branch:
-        description: 'Kernel branch to build'
-        required: true
-        default: SM-G770F
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout kernel source
-      - name: Checkout kernel
-        uses: actions/checkout@v3
-        with:
-          repository: sh4dow6oy/samsung_kernel
-          ref: ${{ github.event.inputs.branch }}
-          path: kernel
+    # 1️⃣ Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      # 2️⃣ Install dependencies
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar xz-utils unzip
+    # 2️⃣ Install dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
 
-      # 3️⃣ Setup Python2
-      - name: Setup Python2
-        run: |
-          sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
-          sudo update-alternatives --set python /usr/bin/python2
+    # 3️⃣ Setup LLVM 10 (Clang)
+    - name: Setup LLVM 10 toolchain
+      run: |
+        TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
+        mkdir -p "$TOOLCHAIN_PATH"
+        wget -qO llvm.tar.xz "https://github.com/kdrag0n/proton-clang/releases/download/10.0.0/clang-r363841c.tar.xz"
+        tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
+        echo "PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "LLVM toolchain ready"
 
-      # 4️⃣ Download prebuilt LLVM 10 (stable)
-      - name: Setup LLVM 10 toolchain
-        run: |
-          TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
-          mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO llvm.tar.xz "https://github.com/kdrag0n/proton-clang/releases/download/10.0.0/clang-r363841c.tar.xz"
-          tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
-          echo "PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "LLVM toolchain ready"
+    # 4️⃣ Setup GCC AArch64
+    - name: Setup GCC AArch64 toolchain
+      run: |
+        TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
+        mkdir -p "$TOOLCHAIN_PATH"
+        wget -qO gcc-aarch64.tar.gz "https://github.com/kdrag0n/proton-clang/releases/download/10.0.0/gcc-aarch64-linux-android-4.9.tar.gz"
+        tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
+        echo "PATH=$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH" >> $GITHUB_ENV
+        echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
+        echo "GCC toolchain ready"
 
-      # 5️⃣ Download GCC AArch64 prebuilt
-      - name: Setup GCC AArch64 toolchain
-        run: |
-          TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
-          mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO gcc-aarch64.tar.gz "https://github.com/kdrag0n/proton-clang/releases/download/10.0.0/gcc-aarch64-linux-android-4.9.tar.gz"
-          tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
-          echo "PATH=$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
-          echo "GCC toolchain ready"
+    # 5️⃣ Detect defconfig
+    - name: Detect defconfig
+      id: detect-config
+      run: |
+        MODEL=${{ github.event.inputs.model }}
+        DEFCONFIG=$(ls kernel/arch/arm64/configs/*_${MODEL}_defconfig 2>/dev/null || ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
+        echo "Using defconfig: $DEFCONFIG"
+        echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 6️⃣ Detect defconfig
-      - name: Detect defconfig
-        id: detect-config
-        run: |
-          MODEL=${{ github.event.inputs.model }}
-          DEFCONFIG=$(ls kernel/arch/arm64/configs/*_${MODEL}_defconfig 2>/dev/null || ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
-          echo "Using defconfig: $DEFCONFIG"
-          echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
+    # 6️⃣ Clean output folder
+    - name: Clean output folder
+      run: rm -rf kernel/out
 
-      # 7️⃣ Clean output folder
-      - name: Clean output folder
-        run: rm -rf kernel/out
+    # 7️⃣ Configure kernel
+    - name: Configure kernel
+      run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
+      working-directory: ./kernel
 
-      # 8️⃣ Configure kernel
-      - name: Configure kernel
-        run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
-        working-directory: ./kernel
+    # 8️⃣ Build kernel
+    - name: Build kernel
+      run: make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
+      working-directory: ./kernel
 
-      # 9️⃣ Build kernel
-      - name: Build kernel
-        run: make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
-        working-directory: ./kernel
-
-      # 🔟 Upload kernel image
-      - name: Upload kernel image
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-image
-          path: kernel/out/arch/arm64/boot/Image.gz-dtb
+    # 9️⃣ Upload kernel image
+    - name: Upload kernel image
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-image
+        path: kernel/out/arch/arm64/boot/Image.gz-dtb
