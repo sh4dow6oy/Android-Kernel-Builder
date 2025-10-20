@@ -25,11 +25,11 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install build dependencies
+      # 2️⃣ Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
+          sudo apt-get install -y build-essential clang make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar xz-utils unzip
 
       # 3️⃣ Setup Python2
       - name: Setup Python2
@@ -37,15 +37,16 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup LLVM 10 prebuilt
+      # 4️⃣ Download and setup LLVM 10 prebuilt (valid tarball)
       - name: Setup LLVM 10 toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO llvm.tar.gz https://android.googlesource.com/toolchain/llvm-project/+archive/android-10/llvm-arm-toolchain-ship-10.0.tar.gz
-          tar xf llvm.tar.gz -C "$TOOLCHAIN_PATH"
-          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship-10.0/bin:$PATH
+          wget -qO llvm.tar.xz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz
+          tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
+          export PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH
           echo "LLVM 10 toolchain ready"
+          ls -l $TOOLCHAIN_PATH/clang-r363841c/bin/clang
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
