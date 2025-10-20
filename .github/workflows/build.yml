@@ -24,35 +24,41 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Checkout toolchain if it's a submodule (optional)
-      - name: Checkout toolchain submodule
-        run: |
-          if [ -f kernel/.gitmodules ]; then
-            git submodule update --init --recursive
-          fi
-
-      # 3️⃣ Install build dependencies
+      # 2️⃣ Install build dependencies
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 unzip
+          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 unzip wget tar
 
-      # 4️⃣ Setup Python2 alternatives
+      # 3️⃣ Setup Python2
       - name: Setup Python2
         run: |
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 5️⃣ Setup Toolchain from repo
+      # 4️⃣ Download prebuilt LLVM and GCC toolchain
       - name: Setup Toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain"
-          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship/10.0/bin:$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
+          mkdir -p "$TOOLCHAIN_PATH"
+
+          # Download LLVM prebuilt (clang)
+          LLVM_URL="https://android.googlesource.com/toolchain/llvm-project/+archive/android-10/llvm-arm-toolchain-ship-10.0.tar.gz"
+          wget -qO llvm.tar.gz "$LLVM_URL"
+          tar xf llvm.tar.gz -C "$TOOLCHAIN_PATH"
+
+          # Download GCC prebuilt for AArch64
+          GCC_URL="https://android.googlesource.com/toolchain/gcc/+archive/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz"
+          wget -qO gcc.tar.gz "$GCC_URL"
+          tar xf gcc.tar.gz -C "$TOOLCHAIN_PATH"
+
+          # Export paths
+          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship-10.0/bin:$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
           export CC=clang
           echo "Toolchain ready"
 
-      # 6️⃣ Detect defconfig automatically based on model
+      # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
         id: detect-config
         run: |
@@ -61,17 +67,17 @@ jobs:
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Configure kernel
+      # 6️⃣ Configure kernel
       - name: Configure kernel
         run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 8️⃣ Build kernel
+      # 7️⃣ Build kernel
       - name: Build kernel
         run: make O=out ARCH=arm64 -j$(nproc)
         working-directory: ./kernel
 
-      # 9️⃣ Upload kernel image
+      # 8️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
