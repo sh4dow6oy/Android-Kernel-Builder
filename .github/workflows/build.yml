@@ -1,4 +1,4 @@
-name: Build Samsung Kernel (GCC 4.9)
+name: Build Samsung Kernel (LLVM 10)
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
+          sudo apt-get install -y build-essential clang make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
 
       # 3️⃣ Setup Python2
       - name: Setup Python2
@@ -37,25 +37,15 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup GCC 4.9 prebuilt
-      - name: Setup GCC 4.9 toolchain
+      # 4️⃣ Download and setup LLVM 10 prebuilt
+      - name: Setup LLVM 10 toolchain
         run: |
-          TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
+          TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/master.tar.gz
-          tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
-
-          # Set toolchain environment variables
-          export PATH=$TOOLCHAIN_PATH/aarch64-linux-android-4.9/bin:$PATH
-          export CROSS_COMPILE=aarch64-linux-android-
-          export CC=aarch64-linux-android-gcc
-          export LD=aarch64-linux-android-ld
-          export AR=aarch64-linux-android-ar
-          export NM=aarch64-linux-android-nm
-          export OBJCOPY=aarch64-linux-android-objcopy
-          export OBJDUMP=aarch64-linux-android-objdump
-          export STRIP=aarch64-linux-android-strip
-          echo "GCC 4.9 toolchain ready"
+          wget -qO llvm.tar.gz https://android.googlesource.com/toolchain/llvm-project/+archive/android-10/llvm-arm-toolchain-ship-10.0.tar.gz
+          tar xf llvm.tar.gz -C "$TOOLCHAIN_PATH"
+          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship-10.0/bin:$PATH
+          echo "LLVM 10 toolchain ready"
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
@@ -73,13 +63,13 @@ jobs:
       # 7️⃣ Configure kernel
       - name: Configure kernel
         run: |
-          make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
+          make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 8️⃣ Build kernel
+      # 8️⃣ Build kernel using LLVM
       - name: Build kernel
         run: |
-          make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
+          make O=out ARCH=arm64 -j$(nproc)
         working-directory: ./kernel
 
       # 9️⃣ Upload kernel image
