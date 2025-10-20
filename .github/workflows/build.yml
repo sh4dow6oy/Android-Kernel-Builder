@@ -22,7 +22,6 @@ jobs:
   run: |
     echo "repos=$(jq -c . ${{ env.CONFIGURATION }})" >> $GITHUB_OUTPUT
 
-
   Build-Kernel:
     name: "🐎 Build kernel"
     runs-on: ubuntu-latest
