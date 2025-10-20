@@ -1,4 +1,4 @@
-name: Build Samsung Kernel (LLVM 10 + GCC + Cache)
+name: Build Samsung Kernel (LLVM 10 + GCC)
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install build dependencies
+      # 2️⃣ Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -57,7 +57,8 @@ jobs:
 
       # 6️⃣ Add LLVM to PATH
       - name: Add LLVM to PATH
-        run: echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+        run: |
+          echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
 
       # 7️⃣ Cache GCC 4.9
       - name: Cache GCC AArch64
@@ -83,7 +84,7 @@ jobs:
           echo "PATH=$PWD/kernel/toolchain/gcc/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH" >> $GITHUB_ENV
           echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
 
-      # 🔟 Detect defconfig automatically
+      # 🔟 Detect defconfig
       - name: Detect defconfig
         id: detect-config
         run: |
@@ -98,14 +99,12 @@ jobs:
 
       # 1️⃣2️⃣ Configure kernel
       - name: Configure kernel
-        run: |
-          make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
+        run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
       # 1️⃣3️⃣ Build kernel
       - name: Build kernel
-        run: |
-          make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
+        run: make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
         working-directory: ./kernel
 
       # 1️⃣4️⃣ Upload kernel image
