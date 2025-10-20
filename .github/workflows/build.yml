@@ -39,19 +39,36 @@ jobs:
       - name: Clean output folder
         run: rm -rf kernel/out
 
-      # 5️⃣ Configure kernel
+      # 5️⃣ Generate defconfig if missing
+      - name: Generate defconfig if missing
+        run: |
+          DEFCONFIG_FILE="arch/arm64/configs/g770f_defconfig"
+          if [ ! -f "$DEFCONFIG_FILE" ]; then
+            echo "Defconfig not found. Generating default..."
+            make O=out ARCH=arm64 defconfig CC=$CC
+            mkdir -p arch/arm64/configs
+            cp out/.config "$DEFCONFIG_FILE"
+            echo "Generated $DEFCONFIG_FILE"
+          else
+            echo "Defconfig already exists: $DEFCONFIG_FILE"
+          fi
+        working-directory: ./kernel
+
+      # 6️⃣ Configure kernel
       - name: Configure kernel
         run: make O=out ARCH=arm64 g770f_defconfig CC=$CC
         working-directory: ./kernel
 
-      # 6️⃣ Build kernel
+      # 7️⃣ Build kernel
       - name: Build kernel
         run: make O=out ARCH=arm64 CC=$CC -j$(nproc)
         working-directory: ./kernel
 
-      # 7️⃣ Upload kernel image
+      # 8️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
           name: kernel-image
+          path: kernel/out/arch/arm64/boot/Image.gz-dtb
+
           path: kernel/out/arch/arm64/boot/Image.gz-dtb
