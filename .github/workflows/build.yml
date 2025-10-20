@@ -57,8 +57,7 @@ jobs:
 
       # 6️⃣ Add LLVM to PATH
       - name: Add LLVM to PATH
-        run: |
-          echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+        run: echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
 
       # 7️⃣ Cache GCC 4.9
       - name: Cache GCC AArch64
@@ -103,7 +102,7 @@ jobs:
           make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 1️⃣3️⃣ Build kernel using LLVM + GCC
+      # 1️⃣3️⃣ Build kernel
       - name: Build kernel
         run: |
           make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
