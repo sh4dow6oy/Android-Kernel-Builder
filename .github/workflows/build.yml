@@ -25,7 +25,7 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install dependencies
+      # 2️⃣ Install build dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -37,12 +37,12 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup LLVM 10 prebuilt (valid tarball)
+      # 4️⃣ Download and setup LLVM 10 prebuilt (URL corect cu ?format=tar)
       - name: Setup LLVM 10 toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO llvm.tar.xz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz
+          wget -qO llvm.tar.xz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz?format=tar"
           tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
           export PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH
           echo "LLVM 10 toolchain ready"
