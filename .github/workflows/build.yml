@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-22.04  # ✅ Ubuntu 22.04 include python2 în repo
+    runs-on: ubuntu-22.04
     steps:
       # 1️⃣ Checkout kernel source
       - name: Checkout kernel source
@@ -24,47 +24,35 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install build dependencies
+      # 2️⃣ Checkout toolchain if it's a submodule (optional)
+      - name: Checkout toolchain submodule
+        run: |
+          if [ -f kernel/.gitmodules ]; then
+            git submodule update --init --recursive
+          fi
+
+      # 3️⃣ Install build dependencies
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
+          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 unzip
 
-      # 3️⃣ Setup Python2 alternatives
+      # 4️⃣ Setup Python2 alternatives
       - name: Setup Python2
         run: |
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Setup Toolchain (from repo or download)
+      # 5️⃣ Setup Toolchain from repo
       - name: Setup Toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain"
-          mkdir -p "$TOOLCHAIN_PATH"
-
-          # LLVM
-          if [ ! -d "$TOOLCHAIN_PATH/llvm-arm-toolchain-ship/10.0" ]; then
-            echo "Downloading LLVM toolchain..."
-            wget -qO- https://github.com/Google/llvm-toolchain/releases/download/llvm-10.0.0/llvm-arm-toolchain-ship-10.0.tar.gz | tar xz -C "$TOOLCHAIN_PATH"
-          else
-            echo "LLVM toolchain already exists in repo"
-          fi
-
-          # GCC
-          if [ ! -d "$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9" ]; then
-            echo "Downloading GCC toolchain..."
-            wget -qO- https://github.com/Google/gcc-toolchain/releases/download/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz | tar xz -C "$TOOLCHAIN_PATH"
-          else
-            echo "GCC toolchain already exists in repo"
-          fi
-
-          # Export paths
           export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship/10.0/bin:$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
           export CC=clang
           echo "Toolchain ready"
 
-      # 5️⃣ Detect defconfig automatically based on model
+      # 6️⃣ Detect defconfig automatically based on model
       - name: Detect defconfig
         id: detect-config
         run: |
@@ -73,17 +61,17 @@ jobs:
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 6️⃣ Configure kernel
+      # 7️⃣ Configure kernel
       - name: Configure kernel
         run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 7️⃣ Build kernel
+      # 8️⃣ Build kernel
       - name: Build kernel
         run: make O=out ARCH=arm64 -j$(nproc)
         working-directory: ./kernel
 
-      # 8️⃣ Upload kernel image
+      # 9️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
