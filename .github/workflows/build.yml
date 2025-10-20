@@ -1,39 +1,89 @@
-name: Build Android Kernel
+name: Build Samsung Kernel
 
 on:
   workflow_dispatch:
+    inputs:
+      model:
+        description: 'Device model (e.g., g770f)'
+        required: true
+        default: g770f
+      branch:
+        description: 'Kernel branch to build'
+        required: true
+        default: SM-G770F
 
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
     steps:
+      # 1️⃣ Checkout kernel source
       - name: Checkout kernel source
         uses: actions/checkout@v3
         with:
           repository: sh4dow6oy/samsung_kernel
-          ref: SM-G770F
+          ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      - name: Install dependencies
+      # 2️⃣ Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev
+          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
 
+      # 3️⃣ Setup Python2
+      - name: Setup Python2
+        run: |
+          sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
+          sudo update-alternatives --set python /usr/bin/python2
+
+      # 4️⃣ Setup Toolchain (use repo or download)
+      - name: Setup Toolchain
+        run: |
+          TOOLCHAIN_PATH="$PWD/kernel/toolchain"
+          mkdir -p "$TOOLCHAIN_PATH"
+
+          # LLVM
+          if [ ! -d "$TOOLCHAIN_PATH/llvm-arm-toolchain-ship/10.0" ]; then
+            echo "Downloading LLVM toolchain..."
+            wget -qO- https://github.com/Google/llvm-toolchain/releases/download/llvm-10.0.0/llvm-arm-toolchain-ship-10.0.tar.gz | tar xz -C "$TOOLCHAIN_PATH"
+          else
+            echo "LLVM toolchain already exists in repo"
+          fi
+
+          # GCC
+          if [ ! -d "$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9" ]; then
+            echo "Downloading GCC toolchain..."
+            wget -qO- https://github.com/Google/gcc-toolchain/releases/download/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz | tar xz -C "$TOOLCHAIN_PATH"
+          else
+            echo "GCC toolchain already exists in repo"
+          fi
+
+          # Export paths
+          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship/10.0/bin:$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
+          export CROSS_COMPILE=aarch64-linux-android-
+          export CC=clang
+          echo "Toolchain ready"
+
+      # 5️⃣ Detect defconfig automatically based on model
       - name: Detect defconfig
         id: detect-config
         run: |
-          DEFCONFIG=$(ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
+          MODEL=${{ github.event.inputs.model }}
+          DEFCONFIG=$(ls kernel/arch/arm64/configs/*_${MODEL}_defconfig 2>/dev/null || ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
+      # 6️⃣ Configure kernel
       - name: Configure kernel
         run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
+      # 7️⃣ Build kernel
       - name: Build kernel
         run: make O=out ARCH=arm64 -j$(nproc)
         working-directory: ./kernel
 
+      # 8️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
