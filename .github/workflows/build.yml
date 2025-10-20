@@ -1,19 +1,14 @@
-name: Build Android Kernel
+name: Build Samsung SM-G770F Kernel
 
 on:
   workflow_dispatch:
-    inputs:
-      model:
-        description: 'Device model (e.g., g770f)'
-        required: true
-        default: g770f
 
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout repository
+      # 1️⃣ Checkout the kernel repository
       - name: Checkout kernel source
         uses: actions/checkout@v3
         with:
@@ -21,11 +16,11 @@ jobs:
           ref: SM-G770F
           submodules: recursive
 
-    # 2️⃣ Install dependencies
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
+      # 2️⃣ Install dependencies
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
 
     # 3️⃣ Setup Clang toolchain
     - name: Setup Clang toolchain
