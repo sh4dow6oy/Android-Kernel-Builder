@@ -25,7 +25,7 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install build dependencies
+      # 2️⃣ Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -37,15 +37,15 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup GCC 4.9 prebuilt toolchain
+      # 4️⃣ Download and setup GCC 4.9 prebuilt
       - name: Setup GCC 4.9 toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO gcc-aarch64.tar.gz https://android.googlesource.com/toolchain/gcc/+archive/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz
+          wget -qO gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/master.tar.gz
           tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
           
-          export PATH=$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
+          export PATH=$TOOLCHAIN_PATH/aarch64-linux-android-4.9/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
           export LD=aarch64-linux-android-ld
           export AR=aarch64-linux-android-ar
