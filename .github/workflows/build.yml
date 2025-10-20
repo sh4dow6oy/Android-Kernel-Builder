@@ -30,15 +30,15 @@ jobs:
     # 3️⃣ Setup Clang toolchain
       - name: Setup Clang toolchain
         run: |
-        TOOLCHAIN_PATH="$PWD/kernel/toolchain/clang"
-        mkdir -p "$TOOLCHAIN_PATH"
-        wget -O clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/bd96dfe349c962681f0e5388af874c771ef96670/clang-r416183b.tar.gz"
-        tar -xf clang.tar.gz -C "$TOOLCHAIN_PATH"
-        export PATH="$TOOLCHAIN_PATH/clang-r416183b/bin:$PATH"
-        export CC=clang
-        echo "PATH=$PATH" >> $GITHUB_ENV
-        echo "CC=$CC" >> $GITHUB_ENV
-        echo "Clang toolchain setup complete"
+          TOOLCHAIN_PATH="$PWD/kernel/toolchain/clang"
+          mkdir -p "$TOOLCHAIN_PATH"
+          wget -O clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/bd96dfe349c962681f0e5388af874c771ef96670/clang-r416183b.tar.gz"
+          tar -xf clang.tar.gz -C "$TOOLCHAIN_PATH"
+          export PATH="$TOOLCHAIN_PATH/clang-r416183b/bin:$PATH"
+          export CC=clang
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "Clang toolchain setup complete"
 
     # 4️⃣ Detect defconfig
     - name: Detect defconfig
