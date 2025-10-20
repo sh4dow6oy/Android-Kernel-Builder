@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # ✅ Ubuntu 22.04 include python2 în repo
     steps:
       # 1️⃣ Checkout kernel source
       - name: Checkout kernel source
@@ -28,18 +28,15 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar unzip software-properties-common
+          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
 
-      # 3️⃣ Install Python2 from deadsnakes PPA
-      - name: Install Python2
+      # 3️⃣ Setup Python2 alternatives
+      - name: Setup Python2
         run: |
-          sudo add-apt-repository -y ppa:deadsnakes/ppa
-          sudo apt-get update
-          sudo apt-get install -y python2
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Setup Toolchain (from repo or download if missing)
+      # 4️⃣ Setup Toolchain (from repo or download)
       - name: Setup Toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain"
