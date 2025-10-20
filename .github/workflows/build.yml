@@ -28,8 +28,8 @@ jobs:
           sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
 
     # 3️⃣ Setup Clang toolchain
-    - name: Setup Clang toolchain
-      run: |
+      - name: Setup Clang toolchain
+        run: |
         TOOLCHAIN_PATH="$PWD/kernel/toolchain/clang"
         mkdir -p "$TOOLCHAIN_PATH"
         wget -O clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/bd96dfe349c962681f0e5388af874c771ef96670/clang-r416183b.tar.gz"
