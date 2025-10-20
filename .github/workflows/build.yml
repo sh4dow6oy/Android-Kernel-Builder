@@ -37,18 +37,22 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup Android NDK (toolchain)
-      - name: Setup Android NDK toolchain
+      # 4️⃣ Download and setup GCC 4.9 prebuilt toolchain
+      - name: Setup GCC 4.9 toolchain
         run: |
-          TOOLCHAIN_PATH="$PWD/kernel/toolchain"
+          TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO ndk.zip https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
-          unzip -q ndk.zip -d "$TOOLCHAIN_PATH"
+          wget -qO gcc-aarch64.tar.gz https://android.googlesource.com/toolchain/gcc/+archive/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz
+          tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
           
-          export PATH=$TOOLCHAIN_PATH/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          export PATH=$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
-          export CC=clang
-          clang --version
+          export LD=aarch64-linux-android-ld
+          export AR=aarch64-linux-android-ar
+          export NM=aarch64-linux-android-nm
+          export OBJCOPY=aarch64-linux-android-objcopy
+          export OBJDUMP=aarch64-linux-android-objdump
+          export STRIP=aarch64-linux-android-strip
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
@@ -62,13 +66,13 @@ jobs:
       # 6️⃣ Configure kernel
       - name: Configure kernel
         run: |
-          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- CC=clang ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
+          make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
       # 7️⃣ Build kernel
       - name: Build kernel
         run: |
-          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- CC=clang -j$(nproc)
+          make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
         working-directory: ./kernel
 
       # 8️⃣ Upload kernel image
