@@ -1,4 +1,4 @@
-name: Build Samsung Kernel
+name: Build Samsung Kernel (GCC 4.9)
 
 on:
   workflow_dispatch:
@@ -25,11 +25,11 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           path: kernel
 
-      # 2️⃣ Install dependencies
+      # 2️⃣ Install build dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 unzip wget tar
+          sudo apt-get install -y build-essential make git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 wget tar unzip
 
       # 3️⃣ Setup Python2
       - name: Setup Python2
@@ -44,15 +44,18 @@ jobs:
           mkdir -p "$TOOLCHAIN_PATH"
           wget -qO gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/master.tar.gz
           tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
-          
+
+          # Set toolchain environment variables
           export PATH=$TOOLCHAIN_PATH/aarch64-linux-android-4.9/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
+          export CC=aarch64-linux-android-gcc
           export LD=aarch64-linux-android-ld
           export AR=aarch64-linux-android-ar
           export NM=aarch64-linux-android-nm
           export OBJCOPY=aarch64-linux-android-objcopy
           export OBJDUMP=aarch64-linux-android-objdump
           export STRIP=aarch64-linux-android-strip
+          echo "GCC 4.9 toolchain ready"
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
@@ -63,19 +66,23 @@ jobs:
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 6️⃣ Configure kernel
+      # 6️⃣ Clean output folder
+      - name: Clean output folder
+        run: rm -rf kernel/out
+
+      # 7️⃣ Configure kernel
       - name: Configure kernel
         run: |
           make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 7️⃣ Build kernel
+      # 8️⃣ Build kernel
       - name: Build kernel
         run: |
           make O=out ARCH=arm64 CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
         working-directory: ./kernel
 
-      # 8️⃣ Upload kernel image
+      # 9️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
