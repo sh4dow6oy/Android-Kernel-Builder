@@ -1,4 +1,4 @@
-name: Build Samsung Kernel (LLVM 10 + GCC)
+name: Build Samsung Kernel
 
 on:
   workflow_dispatch:
@@ -59,6 +59,7 @@ jobs:
       - name: Add LLVM to PATH
         run: |
           echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+          echo "CC=clang" >> $GITHUB_ENV
 
       # 7️⃣ Cache GCC 4.9
       - name: Cache GCC AArch64
