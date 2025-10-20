@@ -1,4 +1,4 @@
-name: Build Samsung Kernel (LLVM 10)
+name: Build Samsung Kernel (LLVM 10 + Cache)
 
 on:
   workflow_dispatch:
@@ -37,18 +37,30 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup LLVM 10 prebuilt
+      # 4️⃣ Cache LLVM 10 prebuilt
+      - name: Cache LLVM 10
+        uses: actions/cache@v3
+        with:
+          path: kernel/toolchain/llvm/clang-r363841c
+          key: llvm-10-cache-v1
+
+      # 5️⃣ Download LLVM if cache missed
       - name: Setup LLVM 10 toolchain
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
           wget -qO llvm.tar.xz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz?format=tar"
           tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
           ls -l $TOOLCHAIN_PATH/clang-r363841c/bin/clang
-          echo "PATH=$TOOLCHAIN_PATH/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
           echo "LLVM 10 toolchain ready"
 
-      # 5️⃣ Detect defconfig automatically
+      # 6️⃣ Set PATH for all steps
+      - name: Add LLVM to PATH
+        run: |
+          echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
+
+      # 7️⃣ Detect defconfig automatically
       - name: Detect defconfig
         id: detect-config
         run: |
@@ -57,23 +69,23 @@ jobs:
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 6️⃣ Clean output folder
+      # 8️⃣ Clean output folder
       - name: Clean output folder
         run: rm -rf kernel/out
 
-      # 7️⃣ Configure kernel
+      # 9️⃣ Configure kernel
       - name: Configure kernel
         run: |
           make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 8️⃣ Build kernel using LLVM
+      # 🔟 Build kernel using LLVM
       - name: Build kernel
         run: |
           make O=out ARCH=arm64 CC=clang -j$(nproc)
         working-directory: ./kernel
 
-      # 9️⃣ Upload kernel image
+      # 1️⃣1️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
