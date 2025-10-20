@@ -1,4 +1,4 @@
-name: Build Samsung Kernel (LLVM 10 + Cache)
+name: Build Samsung Kernel (LLVM 10 + GCC + Cache)
 
 on:
   workflow_dispatch:
@@ -37,8 +37,9 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Cache LLVM 10 prebuilt
+      # 4️⃣ Cache LLVM 10
       - name: Cache LLVM 10
+        id: llvm-cache
         uses: actions/cache@v3
         with:
           path: kernel/toolchain/llvm/clang-r363841c
@@ -46,21 +47,44 @@ jobs:
 
       # 5️⃣ Download LLVM if cache missed
       - name: Setup LLVM 10 toolchain
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain/llvm"
           mkdir -p "$TOOLCHAIN_PATH"
           wget -qO llvm.tar.xz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android10/clang-r363841c.tar.xz?format=tar"
           tar xf llvm.tar.xz -C "$TOOLCHAIN_PATH"
-          ls -l $TOOLCHAIN_PATH/clang-r363841c/bin/clang
-          echo "LLVM 10 toolchain ready"
+          echo "LLVM 10 toolchain downloaded"
 
-      # 6️⃣ Set PATH for all steps
+      # 6️⃣ Add LLVM to PATH
       - name: Add LLVM to PATH
         run: |
           echo "PATH=$PWD/kernel/toolchain/llvm/clang-r363841c/bin:$PATH" >> $GITHUB_ENV
 
-      # 7️⃣ Detect defconfig automatically
+      # 7️⃣ Cache GCC 4.9
+      - name: Cache GCC AArch64
+        id: gcc-cache
+        uses: actions/cache@v3
+        with:
+          path: kernel/toolchain/gcc/linux-x86/aarch64/aarch64-linux-android-4.9
+          key: gcc-aarch64-cache-v1
+
+      # 8️⃣ Download GCC if cache missed
+      - name: Setup GCC AArch64 toolchain
+        if: steps.gcc-cache.outputs.cache-hit != 'true'
+        run: |
+          TOOLCHAIN_PATH="$PWD/kernel/toolchain/gcc"
+          mkdir -p "$TOOLCHAIN_PATH"
+          wget -qO gcc-aarch64.tar.gz "https://android.googlesource.com/toolchain/gcc/+archive/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz"
+          tar xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
+          echo "GCC AArch64 toolchain downloaded"
+
+      # 9️⃣ Add GCC to PATH
+      - name: Add GCC to PATH
+        run: |
+          echo "PATH=$PWD/kernel/toolchain/gcc/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH" >> $GITHUB_ENV
+          echo "CROSS_COMPILE=aarch64-linux-android-" >> $GITHUB_ENV
+
+      # 🔟 Detect defconfig automatically
       - name: Detect defconfig
         id: detect-config
         run: |
@@ -69,23 +93,23 @@ jobs:
           echo "Using defconfig: $DEFCONFIG"
           echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 8️⃣ Clean output folder
+      # 1️⃣1️⃣ Clean output folder
       - name: Clean output folder
         run: rm -rf kernel/out
 
-      # 9️⃣ Configure kernel
+      # 1️⃣2️⃣ Configure kernel
       - name: Configure kernel
         run: |
           make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
-      # 🔟 Build kernel using LLVM
+      # 1️⃣3️⃣ Build kernel using LLVM + GCC
       - name: Build kernel
         run: |
-          make O=out ARCH=arm64 CC=clang -j$(nproc)
+          make O=out ARCH=arm64 CC=clang CROSS_COMPILE=$CROSS_COMPILE -j$(nproc)
         working-directory: ./kernel
 
-      # 1️⃣1️⃣ Upload kernel image
+      # 1️⃣4️⃣ Upload kernel image
       - name: Upload kernel image
         uses: actions/upload-artifact@v4
         with:
