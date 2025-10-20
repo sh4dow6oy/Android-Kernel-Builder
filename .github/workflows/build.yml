@@ -13,57 +13,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout kernel source
-        uses: actions/checkout@v2
+    # 1️⃣ Checkout repository
+    - name: Checkout kernel source
+      uses: actions/checkout@v3
 
-      # 2️⃣ Install dependencies
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
+    # 2️⃣ Install dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev wget tar
 
-      # 3️⃣ Setup Clang toolchain
-      - name: Setup Clang toolchain
-        run: |
-          TOOLCHAIN_PATH="$PWD/kernel/toolchain/clang"
-          mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO clang.tar.xz "https://github.com/lemniskett/android-kernel-actions/releases/download/v1.0.0/clang-r416183b-linux-x86_64.tar.xz"
-          tar -xf clang.tar.xz -C "$TOOLCHAIN_PATH"
-          echo "PATH=$TOOLCHAIN_PATH/clang-r416183b/bin:$PATH" >> $GITHUB_ENV
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "Clang toolchain setup complete"
+    # 3️⃣ Setup Clang toolchain
+    - name: Setup Clang toolchain
+      run: |
+        TOOLCHAIN_PATH="$PWD/kernel/toolchain/clang"
+        mkdir -p "$TOOLCHAIN_PATH"
+        wget -O clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/bd96dfe349c962681f0e5388af874c771ef96670/clang-r416183b.tar.gz"
+        tar -xf clang.tar.gz -C "$TOOLCHAIN_PATH"
+        export PATH="$TOOLCHAIN_PATH/clang-r416183b/bin:$PATH"
+        export CC=clang
+        echo "PATH=$PATH" >> $GITHUB_ENV
+        echo "CC=$CC" >> $GITHUB_ENV
+        echo "Clang toolchain setup complete"
 
-      # 4️⃣ Detect defconfig
-      - name: Detect defconfig
-        id: detect-config
-        run: |
-          MODEL=${{ github.event.inputs.model }}
-          DEFCONFIG=$(ls kernel/arch/arm64/configs/*_${MODEL}_defconfig 2>/dev/null || ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
-          if [ -z "$DEFCONFIG" ]; then
-            echo "Error: No defconfig found for model $MODEL"
-            exit 1
-          fi
-          echo "Using defconfig: $DEFCONFIG"
-          echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
+    # 4️⃣ Detect defconfig
+    - name: Detect defconfig
+      id: detect-config
+      run: |
+        MODEL=${{ github.event.inputs.model }}
+        DEFCONFIG=$(ls kernel/arch/arm64/configs/*_${MODEL}_defconfig 2>/dev/null || ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
+        if [ -z "$DEFCONFIG" ]; then
+          echo "Error: No defconfig found for model $MODEL"
+          exit 1
+        fi
+        echo "Using defconfig: $DEFCONFIG"
+        echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
 
-      # 5️⃣ Clean output folder
-      - name: Clean output folder
-        run: rm -rf kernel/out
+    # 5️⃣ Clean output folder
+    - name: Clean output folder
+      run: rm -rf kernel/out
 
-      # 6️⃣ Configure kernel
-      - name: Configure kernel
-        run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }} CC=clang
-        working-directory: ./kernel
+    # 6️⃣ Configure kernel
+    - name: Configure kernel
+      run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }} CC=$CC
+      working-directory: ./kernel
 
-      # 7️⃣ Build kernel
-      - name: Build kernel
-        run: make O=out ARCH=arm64 CC=clang -j$(nproc)
-        working-directory: ./kernel
+    # 7️⃣ Build kernel
+    - name: Build kernel
+      run: make O=out ARCH=arm64 CC=$CC -j$(nproc)
+      working-directory: ./kernel
 
-      # 8️⃣ Upload kernel image
-      - name: Upload kernel image
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-image
-          path: kernel/out/arch/arm64/boot/Image.gz-dtb
+    # 8️⃣ Upload kernel image
+    - name: Upload kernel image
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-image
+        path: kernel/out/arch/arm64/boot/Image.gz-dtb
