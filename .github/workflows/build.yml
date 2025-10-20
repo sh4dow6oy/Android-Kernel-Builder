@@ -1,7 +1,12 @@
-name: Build Samsung SM-G770F Kernel
+name: Build Android Kernel
 
 on:
   workflow_dispatch:
+    inputs:
+      model:
+        description: 'Device model (e.g., g770f)'
+        required: true
+        default: g770f
 
 jobs:
   build-kernel:
