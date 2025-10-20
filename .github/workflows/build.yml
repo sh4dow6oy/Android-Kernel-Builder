@@ -15,9 +15,10 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
+
     steps:
       # 1️⃣ Checkout kernel source
-      - name: Checkout kernel source
+      - name: Checkout kernel
         uses: actions/checkout@v3
         with:
           repository: sh4dow6oy/samsung_kernel
@@ -25,7 +26,7 @@ jobs:
           path: kernel
 
       # 2️⃣ Install build dependencies
-      - name: Install build dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev python2 unzip wget tar
@@ -40,12 +41,11 @@ jobs:
       - name: Setup Android NDK toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain"
-          NDK_VERSION="r27d"
           mkdir -p "$TOOLCHAIN_PATH"
-          wget -qO ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          wget -qO ndk.zip https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
           unzip -q ndk.zip -d "$TOOLCHAIN_PATH"
           
-          export PATH=$TOOLCHAIN_PATH/android-ndk-${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          export PATH=$TOOLCHAIN_PATH/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
           export CC=clang
           clang --version
@@ -61,12 +61,14 @@ jobs:
 
       # 6️⃣ Configure kernel
       - name: Configure kernel
-        run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
+        run: |
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- CC=clang ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
       # 7️⃣ Build kernel
       - name: Build kernel
-        run: make O=out ARCH=arm64 -j$(nproc)
+        run: |
+          make O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-android- CC=clang -j$(nproc)
         working-directory: ./kernel
 
       # 8️⃣ Upload kernel image
