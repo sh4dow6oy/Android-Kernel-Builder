@@ -4,31 +4,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  set-repos:
-    runs-on: ubuntu-latest
-    outputs:
-      repos: ${{ steps.set-repos.outputs.repos }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set repos
-        id: set-repos
-        run: |
-          echo "repos=$(jq -c . ${{ github.workspace }}/repos.json)" >> $GITHUB_OUTPUT
-
   build-kernel:
-    needs: set-repos
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        repo: ${{ fromJson(needs.set-repos.outputs.repos) }}
     steps:
       - name: Checkout kernel source
         uses: actions/checkout@v3
         with:
-          repository: ${{ matrix.repo.url }}
-          ref: ${{ matrix.repo.branch }}
+          repository: sh4dow6oy/samsung_kernel
+          ref: SM-G770F
           path: kernel
 
       - name: Install dependencies
@@ -36,8 +19,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential clang make gcc git bc bison flex libssl-dev libncurses5-dev libelf-dev
 
+      - name: Detect defconfig
+        id: detect-config
+        run: |
+          DEFCONFIG=$(ls kernel/arch/arm64/configs/*_defconfig | head -n 1)
+          echo "Using defconfig: $DEFCONFIG"
+          echo "DEFCONFIG_NAME=$(basename $DEFCONFIG)" >> $GITHUB_OUTPUT
+
       - name: Configure kernel
-        run: make O=out ARCH=arm64 ${{ matrix.repo.config }}
+        run: make O=out ARCH=arm64 ${{ steps.detect-config.outputs.DEFCONFIG_NAME }}
         working-directory: ./kernel
 
       - name: Build kernel
