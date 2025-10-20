@@ -36,25 +36,19 @@ jobs:
           sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
           sudo update-alternatives --set python /usr/bin/python2
 
-      # 4️⃣ Download and setup toolchain
-      - name: Setup Toolchain
+      # 4️⃣ Download and setup Android NDK (toolchain)
+      - name: Setup Android NDK toolchain
         run: |
           TOOLCHAIN_PATH="$PWD/kernel/toolchain"
+          NDK_VERSION="r27d"
           mkdir -p "$TOOLCHAIN_PATH"
-
-          # Download LLVM (clang)
-          wget -qO llvm.tar.gz https://android.googlesource.com/toolchain/llvm-project/+archive/android-10/llvm-arm-toolchain-ship-10.0.tar.gz
-          tar xf llvm.tar.gz -C "$TOOLCHAIN_PATH"
-
-          # Download GCC (AArch64)
-          wget -qO gcc.tar.gz https://android.googlesource.com/toolchain/gcc/+archive/gcc-4.9/gcc-aarch64-linux-android-4.9.tar.gz
-          tar xf gcc.tar.gz -C "$TOOLCHAIN_PATH"
-
-          # Export paths
-          export PATH=$TOOLCHAIN_PATH/llvm-arm-toolchain-ship-10.0/bin:$TOOLCHAIN_PATH/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin:$PATH
+          wget -qO ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
+          unzip -q ndk.zip -d "$TOOLCHAIN_PATH"
+          
+          export PATH=$TOOLCHAIN_PATH/android-ndk-${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
           export CROSS_COMPILE=aarch64-linux-android-
           export CC=clang
-          echo "Toolchain ready"
+          clang --version
 
       # 5️⃣ Detect defconfig automatically
       - name: Detect defconfig
