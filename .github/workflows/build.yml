@@ -52,20 +52,9 @@ jobs:
       - name: Clean output folder
         run: rm -rf kernel/out
 
-      # 6️⃣ Generate defconfig if missing
-      - name: Generate defconfig if missing
-        run: |
-          DEFCONFIG_FILE="arch/arm64/configs/g770f_defconfig"
-          if [ ! -f "$DEFCONFIG_FILE" ]; then
-            echo "Defconfig not found. Generating default..."
-            make O=out ARCH=arm64 defconfig CC=$CC CROSS_COMPILE=$CROSS_COMPILE
-            mkdir -p arch/arm64/configs
-            cp out/.config "$DEFCONFIG_FILE"
-            echo "Generated $DEFCONFIG_FILE"
-          else
-            echo "Defconfig already exists: $DEFCONFIG_FILE"
-          fi
-        working-directory: ./kernel
+      # 6️⃣ Load defconfig
+      - name: Load defconfig
+        run: make r5q_eur_open_defconfig
 
       # 7️⃣ Configure kernel
       - name: Configure kernel
