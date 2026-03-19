@@ -1,75 +1,59 @@
-name: Build Samsung R5Q Kernel
+name: Build External Kernel
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget bc bison flex libssl-dev libelf-dev python2
+          sudo apt update
+          sudo apt install -y \
+            build-essential bc bison flex libssl-dev \
+            libncurses5-dev libelf-dev git curl wget
 
-      - name: Setup python2
+      # 🔽 Clone kernel din GitHub (NU din repo-ul tău)
+      - name: Clone kernel source
         run: |
-          sudo ln -sf /usr/bin/python2 /usr/bin/python
+          git clone --depth=1 --branch rawr-bpf \
+          https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
-      - name: Setup Clang toolchain
+      # 🔽 Toolchains
+      - name: Clone GCC
         run: |
-          TOOLCHAIN_PATH="$PWD/toolchain/clang"
-          mkdir -p "$TOOLCHAIN_PATH"
-          wget -O clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/413febb26cbd05d9a1e44f089190ac892f72e684.tar.gz"
-          tar -xf clang.tar.gz -C "$TOOLCHAIN_PATH"
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 kernel/toolchain/gcc-cfp/gcc-cfp-single
 
-          # Create expected path for your build system
-          mkdir -p "$PWD/toolchain/llvm-arm-toolchain-ship/10.0/bin"
-          ln -s "$TOOLCHAIN_PATH/clang-r416183b/bin/clang" "$PWD/toolchain/llvm-arm-toolchain-ship/10.0/bin/clang"
-
-          export PATH="$TOOLCHAIN_PATH/clang-r416183b/bin:$PATH"
-          export CC=clang
-
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "CC=$CC" >> $GITHUB_ENV
-
-      - name: Setup GCC AArch64 toolchain
+      - name: Clone Clang
         run: |
-          TOOLCHAIN_PATH="$PWD/toolchain/gcc"
-          mkdir -p "$TOOLCHAIN_PATH"
-          wget -O gcc-aarch64.tar.gz "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/master.tar.gz"
-          tar -xf gcc-aarch64.tar.gz -C "$TOOLCHAIN_PATH"
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang kernel/toolchain/llvm-arm-toolchain-ship
 
-          export PATH="$TOOLCHAIN_PATH/aarch64-linux-android-4.9/bin:$PATH"
-          export CROSS_COMPILE=aarch64-linux-android-
-          export LD=aarch64-linux-android-ld
-
-          echo "PATH=$PATH" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=$CROSS_COMPILE" >> $GITHUB_ENV
-          echo "LD=$LD" >> $GITHUB_ENV
-
-      - name: Configure kernel
+      - name: Clone DTC
         run: |
-          export ARCH=arm64
-          make ARCH=arm64 r5q_eur_open_defconfig
+          git clone --depth=1 https://github.com/qcom-opensource/dtc kernel/tools/dtc
 
+      # 🔽 Build kernel
       - name: Build kernel
         run: |
-          export ARCH=arm64
-          make -j$(nproc) ARCH=arm64
+          cd kernel
 
-      - name: Package artifacts
+          export ARCH=arm64
+          mkdir -p out
+
+          BUILD_CROSS_COMPILE=$(pwd)/toolchain/gcc-cfp/gcc-cfp-single/bin/aarch64-linux-gnu-
+          KERNEL_LLVM_BIN=$(pwd)/toolchain/llvm-arm-toolchain-ship/bin/clang
+          CLANG_TRIPLE=aarch64-linux-gnu-
+          KERNEL_MAKE_ENV="DTC_EXT=$(pwd)/tools/dtc CONFIG_BUILD_ARM64_DT_OVERLAY=y"
+
+          make -j$(nproc) O=out $KERNEL_MAKE_ENV ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE REAL_CC=$KERNEL_LLVM_BIN CLANG_TRIPLE=$CLANG_TRIPLE r5q_eur_open_defconfig
+
+          make -j$(nproc) O=out $KERNEL_MAKE_ENV ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE REAL_CC=$KERNEL_LLVM_BIN CLANG_TRIPLE=$CLANG_TRIPLE
+
+      # 🔽 Upload rezultat
+      - name: Upload Image
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-build
-          path: |
-            arch/arm64/boot/Image
-            arch/arm64/boot/dts/*.dtb
-            .config
+          name: kernel-image
+          path: kernel/out/arch/arm64/boot/Image
