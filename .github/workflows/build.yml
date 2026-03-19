@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Instalare dependențe
+      # 1. Dependințe
       - name: Install dependencies
         run: |
           sudo apt update
@@ -16,40 +16,39 @@ jobs:
             build-essential bc bison flex libssl-dev \
             libncurses5-dev libelf-dev git curl wget xz-utils zip
 
-      # 2️⃣ Clone kernel
-      - name: Clone kernel
+      # 2. Clone kernel sursă (rawr-bpf)
+      - name: Clone kernel source
         run: |
           git clone --depth=1 --branch rawr-bpf \
             https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
-      # 3️⃣ Download & extract GCC toolchain oficial (release)
-      - name: Download GCC toolchain
+      # 3. Download și extract toolchain Linaro
+      - name: Download Linaro AArch64 GCC
         run: |
           mkdir -p toolchain/gcc
-          wget https://github.com/mvaisakh/gcc-build/releases/download/19032026/eva-gcc-arm64-19032026.xz \
-            -O toolchain/gcc/eva-gcc-arm64-19032026.tar.xz
+          wget https://releases.linaro.org/components/toolchain/binaries/latest-9/aarch64-linux-gnu/gcc-linaro-9.5.0-2020.12-x86_64_aarch64-linux-gnu.tar.xz \
+            -O toolchain/gcc/gcc-linaro.tar.xz
           cd toolchain/gcc
-          tar -xvf eva-gcc-arm64-19032026.tar.xz --strip-components=1 -J
+          tar -xvf gcc-linaro.tar.xz --strip-components=1 -J
           cd ../..
 
-      # 4️⃣ Clone Clang proton
+      # 4. Clone Clang
       - name: Clone Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang kernel/toolchain/llvm-arm-toolchain-ship
 
-      # 5️⃣ Clone AnyKernel3
+      # 5. Clone AnyKernel3
       - name: Clone AnyKernel3
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
 
-      # 6️⃣ Build kernel + dtbo
+      # 6. Build kernel + dtbo
       - name: Build kernel
         run: |
           cd kernel
           export ARCH=arm64
           mkdir -p out
 
-          # toolchain paths
           BUILD_CROSS_COMPILE=$(pwd)/../toolchain/gcc/bin/aarch64-linux-gnu-
           KERNEL_LLVM_BIN=$(pwd)/toolchain/llvm-arm-toolchain-ship/bin/clang
           CLANG_TRIPLE=aarch64-linux-gnu-
@@ -72,10 +71,10 @@ jobs:
             REAL_CC=$KERNEL_LLVM_BIN \
             CLANG_TRIPLE=$CLANG_TRIPLE
 
-          # build dtbo
+          # build dtbo.img
           make -j$(nproc) O=out dtbo.img
 
-      # 7️⃣ Build flashable ZIP AnyKernel3
+      # 7. Build flashable ZIP AnyKernel3
       - name: Create flashable zip
         run: |
           cp kernel/out/arch/arm64/boot/Image anykernel/
@@ -84,7 +83,7 @@ jobs:
           export ZIP_NAME="Kernel-rawr-bpf-$(date +%Y%m%d).zip"
           zip -r9 ../$ZIP_NAME *
 
-      # 8️⃣ Upload flashable ZIP
+      # 8. Upload ZIP
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
