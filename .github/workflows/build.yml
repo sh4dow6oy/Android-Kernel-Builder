@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Instalare dependențe
       - name: Install dependencies
         run: |
           sudo apt update
@@ -15,39 +16,48 @@ jobs:
             build-essential bc bison flex libssl-dev \
             libncurses5-dev libelf-dev git curl wget xz-utils zip
 
-      # 🔽 Clone kernel source (rawr-bpf)
+      # 2️⃣ Clone kernel
       - name: Clone kernel
         run: |
           git clone --depth=1 --branch rawr-bpf \
             https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
-      # 🔽 Download & extract GCC toolchain from release
-      - name: Clone GCC
+      # 3️⃣ Download & extract GCC toolchain oficial (release)
+      - name: Download GCC toolchain
         run: |
-          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 kernel/toolchain/gcc-cfp/gcc-cfp-single
+          mkdir -p toolchain/gcc
+          wget https://github.com/mvaisakh/gcc-build/releases/download/19032026/eva-gcc-arm64-19032026.xz \
+            -O toolchain/gcc/eva-gcc-arm64.xz
+          cd toolchain/gcc
+          # dezarhivare XZ + TAR
+          xz -d eva-gcc-arm64.xz
+          tar -xvf eva-gcc-arm64-19032026.tar --strip-components=1
+          cd ../..
 
-      # 🔽 Clone Clang
+      # 4️⃣ Clone Clang proton
       - name: Clone Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang kernel/toolchain/llvm-arm-toolchain-ship
 
-      # 🔽 Clone AnyKernel3
+      # 5️⃣ Clone AnyKernel3
       - name: Clone AnyKernel3
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
 
-      # 🔽 Build kernel + dtbo
+      # 6️⃣ Build kernel + dtbo
       - name: Build kernel
         run: |
           cd kernel
           export ARCH=arm64
           mkdir -p out
 
+          # toolchain paths
           BUILD_CROSS_COMPILE=$(pwd)/../toolchain/gcc/bin/aarch64-linux-gnu-
           KERNEL_LLVM_BIN=$(pwd)/toolchain/llvm-arm-toolchain-ship/bin/clang
           CLANG_TRIPLE=aarch64-linux-gnu-
           KERNEL_MAKE_ENV="DTC_EXT=$(pwd)/tools/dtc CONFIG_BUILD_ARM64_DT_OVERLAY=y"
 
+          # defconfig
           make -j$(nproc) O=out \
             $KERNEL_MAKE_ENV \
             ARCH=arm64 \
@@ -56,6 +66,7 @@ jobs:
             CLANG_TRIPLE=$CLANG_TRIPLE \
             r5q_eur_open_defconfig
 
+          # build kernel
           make -j$(nproc) O=out \
             $KERNEL_MAKE_ENV \
             ARCH=arm64 \
@@ -66,7 +77,7 @@ jobs:
           # build dtbo
           make -j$(nproc) O=out dtbo.img
 
-      # 🔽 Build flashable ZIP with AnyKernel3
+      # 7️⃣ Build flashable ZIP AnyKernel3
       - name: Create flashable zip
         run: |
           cp kernel/out/arch/arm64/boot/Image anykernel/
@@ -75,7 +86,7 @@ jobs:
           export ZIP_NAME="Kernel-rawr-bpf-$(date +%Y%m%d).zip"
           zip -r9 ../$ZIP_NAME *
 
-      # 🔽 Upload flashable ZIP
+      # 8️⃣ Upload flashable ZIP
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
