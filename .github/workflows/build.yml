@@ -22,15 +22,9 @@ jobs:
             https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
       # 🔽 Download & extract GCC toolchain from release
-      - name: Download GCC toolchain
+      - name: Clone GCC
         run: |
-          mkdir -p toolchain/gcc
-          wget https://github.com/mvaisakh/gcc-build/releases/download/19032026/eva-gcc-arm64-19032026.xz \
-            -O toolchain/gcc/eva-gcc-arm64.xz
-          cd toolchain/gcc
-          xz -d eva-gcc-arm64.xz
-          tar -xvf eva-gcc-arm64.tar --strip-components=1
-          cd ../..
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 kernel/toolchain/gcc-cfp/gcc-cfp-single
 
       # 🔽 Clone Clang
       - name: Clone Clang
