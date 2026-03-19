@@ -27,11 +27,9 @@ jobs:
         run: |
           mkdir -p toolchain/gcc
           wget https://github.com/mvaisakh/gcc-build/releases/download/19032026/eva-gcc-arm64-19032026.xz \
-            -O toolchain/gcc/eva-gcc-arm64.xz
+            -O toolchain/gcc/eva-gcc-arm64-19032026.tar.xz
           cd toolchain/gcc
-          # dezarhivare XZ + TAR
-          xz -d eva-gcc-arm64.xz
-          tar -xvf eva-gcc-arm64-19032026.tar --strip-components=1
+          tar -xvf eva-gcc-arm64-19032026.tar.xz --strip-components=1 -J
           cd ../..
 
       # 4️⃣ Clone Clang proton
