@@ -1,4 +1,4 @@
-name: Build External Kernel
+name: Build Kernel + AnyKernel3
 
 on:
   workflow_dispatch:
@@ -13,10 +13,10 @@ jobs:
           sudo apt update
           sudo apt install -y \
             build-essential bc bison flex libssl-dev \
-            libncurses5-dev libelf-dev git curl wget
+            libncurses5-dev libelf-dev git curl wget python3
 
-      # 🔽 Clone kernel din GitHub (NU din repo-ul tău)
-      - name: Clone kernel source
+      # 🔽 Kernel source
+      - name: Clone kernel
         run: |
           git clone --depth=1 --branch rawr-bpf \
           https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
@@ -34,7 +34,12 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/qcom-opensource/dtc kernel/tools/dtc
 
-      # 🔽 Build kernel
+      # 🔽 AnyKernel3
+      - name: Clone AnyKernel3
+        run: |
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
+
+      # 🔽 Build kernel + dtbo
       - name: Build kernel
         run: |
           cd kernel
@@ -51,9 +56,25 @@ jobs:
 
           make -j$(nproc) O=out $KERNEL_MAKE_ENV ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE REAL_CC=$KERNEL_LLVM_BIN CLANG_TRIPLE=$CLANG_TRIPLE
 
-      # 🔽 Upload rezultat
-      - name: Upload Image
+      # 🔽 Copy outputs în AnyKernel
+      - name: Prepare AnyKernel
+        run: |
+          cp kernel/out/arch/arm64/boot/Image anykernel/
+          
+          # dtbo (dacă există)
+          if [ -f kernel/out/arch/arm64/boot/dtbo.img ]; then
+            cp kernel/out/arch/arm64/boot/dtbo.img anykernel/
+          fi
+
+      # 🔽 Build ZIP
+      - name: Create flashable zip
+        run: |
+          cd anykernel
+          zip -r9 Kernel-sm8150-$(date +%Y%m%d).zip *
+
+      # 🔽 Upload ZIP
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-image
-          path: kernel/out/arch/arm64/boot/Image
+          name: AnyKernel3
+          path: anykernel/*.zip
