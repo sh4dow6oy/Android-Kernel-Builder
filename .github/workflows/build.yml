@@ -13,28 +13,31 @@ jobs:
           sudo apt update
           sudo apt install -y \
             build-essential bc bison flex libssl-dev \
-            libncurses5-dev libelf-dev git curl wget python3
+            libncurses5-dev libelf-dev git curl wget xz-utils zip
 
-      # 🔽 Kernel source
+      # 🔽 Clone kernel source (rawr-bpf)
       - name: Clone kernel
         run: |
           git clone --depth=1 --branch rawr-bpf \
-          https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
+            https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
-      # 🔽 Toolchains
-      - name: Clone GCC
+      # 🔽 Download & extract GCC toolchain from release
+      - name: Download GCC toolchain
         run: |
-          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 kernel/toolchain/gcc-cfp/gcc-cfp-single
+          mkdir -p toolchain/gcc
+          wget https://github.com/mvaisakh/gcc-build/releases/download/19032026/eva-gcc-arm64-19032026.xz \
+            -O toolchain/gcc/eva-gcc-arm64.xz
+          cd toolchain/gcc
+          xz -d eva-gcc-arm64.xz
+          tar -xvf eva-gcc-arm64.tar --strip-components=1
+          cd ../..
 
+      # 🔽 Clone Clang
       - name: Clone Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang kernel/toolchain/llvm-arm-toolchain-ship
 
-      - name: Clone DTC
-        run: |
-          git clone --depth=1 https://github.com/qcom-opensource/dtc kernel/tools/dtc
-
-      # 🔽 AnyKernel3
+      # 🔽 Clone AnyKernel3
       - name: Clone AnyKernel3
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
@@ -43,38 +46,44 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-
           export ARCH=arm64
           mkdir -p out
 
-          BUILD_CROSS_COMPILE=$(pwd)/toolchain/gcc-cfp/gcc-cfp-single/bin/aarch64-linux-gnu-
+          BUILD_CROSS_COMPILE=$(pwd)/../toolchain/gcc/bin/aarch64-linux-gnu-
           KERNEL_LLVM_BIN=$(pwd)/toolchain/llvm-arm-toolchain-ship/bin/clang
           CLANG_TRIPLE=aarch64-linux-gnu-
           KERNEL_MAKE_ENV="DTC_EXT=$(pwd)/tools/dtc CONFIG_BUILD_ARM64_DT_OVERLAY=y"
 
-          make -j$(nproc) O=out $KERNEL_MAKE_ENV ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE REAL_CC=$KERNEL_LLVM_BIN CLANG_TRIPLE=$CLANG_TRIPLE r5q_eur_open_defconfig
+          make -j$(nproc) O=out \
+            $KERNEL_MAKE_ENV \
+            ARCH=arm64 \
+            CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+            REAL_CC=$KERNEL_LLVM_BIN \
+            CLANG_TRIPLE=$CLANG_TRIPLE \
+            r5q_eur_open_defconfig
 
-          make -j$(nproc) O=out $KERNEL_MAKE_ENV ARCH=arm64 CROSS_COMPILE=$BUILD_CROSS_COMPILE REAL_CC=$KERNEL_LLVM_BIN CLANG_TRIPLE=$CLANG_TRIPLE
+          make -j$(nproc) O=out \
+            $KERNEL_MAKE_ENV \
+            ARCH=arm64 \
+            CROSS_COMPILE=$BUILD_CROSS_COMPILE \
+            REAL_CC=$KERNEL_LLVM_BIN \
+            CLANG_TRIPLE=$CLANG_TRIPLE
 
-      # 🔽 Copy outputs în AnyKernel
-      - name: Prepare AnyKernel
-        run: |
-          cp kernel/out/arch/arm64/boot/Image anykernel/
-          
-          # dtbo (dacă există)
-          if [ -f kernel/out/arch/arm64/boot/dtbo.img ]; then
-            cp kernel/out/arch/arm64/boot/dtbo.img anykernel/
-          fi
+          # build dtbo
+          make -j$(nproc) O=out dtbo.img
 
-      # 🔽 Build ZIP
+      # 🔽 Build flashable ZIP with AnyKernel3
       - name: Create flashable zip
         run: |
+          cp kernel/out/arch/arm64/boot/Image anykernel/
+          cp kernel/out/arch/arm64/boot/dtbo.img anykernel/ 2>/dev/null || true
           cd anykernel
-          zip -r9 Kernel-sm8150-$(date +%Y%m%d).zip *
+          export ZIP_NAME="Kernel-rawr-bpf-$(date +%Y%m%d).zip"
+          zip -r9 ../$ZIP_NAME *
 
-      # 🔽 Upload ZIP
-      - name: Upload ZIP
+      # 🔽 Upload flashable ZIP
+      - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3
-          path: anykernel/*.zip
+          name: kernel-zip
+          path: Kernel-*.zip
