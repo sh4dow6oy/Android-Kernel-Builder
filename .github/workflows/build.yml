@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Dependințe
+      # 1️⃣ Instalare dependențe
       - name: Install dependencies
         run: |
           sudo apt update
@@ -16,33 +16,31 @@ jobs:
             build-essential bc bison flex libssl-dev \
             libncurses5-dev libelf-dev git curl wget xz-utils zip
 
-      # 2. Clone kernel sursă (rawr-bpf)
-      - name: Clone kernel source
+      # 2️⃣ Clone kernel sursă
+      - name: Clone kernel
         run: |
           git clone --depth=1 --branch rawr-bpf \
             https://github.com/LumiPlayground/android_kernel_samsung_sm8150 kernel
 
-      # 3. Download și extract toolchain Linaro
-      - name: Download Linaro AArch64 GCC
+      # 3️⃣ Download & extract Linaro GCC 7.2.1
+      - name: Download GCC toolchain
         run: |
           mkdir -p toolchain/gcc
-          wget https://releases.linaro.org/components/toolchain/binaries/latest-9/aarch64-linux-gnu/gcc-linaro-9.5.0-2020.12-x86_64_aarch64-linux-gnu.tar.xz \
-            -O toolchain/gcc/gcc-linaro.tar.xz
-          cd toolchain/gcc
-          tar -xvf gcc-linaro.tar.xz --strip-components=1 -J
-          cd ../..
+          wget https://releases.linaro.org/components/toolchain/binaries/latest-7/aarch64-linux-gnu/gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu.tar.xz \
+            -O toolchain/gcc/gcc-linaro-7.2.1.tar.xz
+          tar -xvf toolchain/gcc/gcc-linaro-7.2.1.tar.xz --strip-components=1 -C toolchain/gcc
 
-      # 4. Clone Clang
+      # 4️⃣ Clone Clang proton
       - name: Clone Clang
         run: |
           git clone --depth=1 https://github.com/kdrag0n/proton-clang kernel/toolchain/llvm-arm-toolchain-ship
 
-      # 5. Clone AnyKernel3
+      # 5️⃣ Clone AnyKernel3
       - name: Clone AnyKernel3
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 anykernel
 
-      # 6. Build kernel + dtbo
+      # 6️⃣ Build kernel + dtbo
       - name: Build kernel
         run: |
           cd kernel
@@ -74,7 +72,7 @@ jobs:
           # build dtbo.img
           make -j$(nproc) O=out dtbo.img
 
-      # 7. Build flashable ZIP AnyKernel3
+      # 7️⃣ Build flashable ZIP AnyKernel3
       - name: Create flashable zip
         run: |
           cp kernel/out/arch/arm64/boot/Image anykernel/
@@ -83,7 +81,7 @@ jobs:
           export ZIP_NAME="Kernel-rawr-bpf-$(date +%Y%m%d).zip"
           zip -r9 ../$ZIP_NAME *
 
-      # 8. Upload ZIP
+      # 8️⃣ Upload flashable ZIP
       - name: Upload flashable ZIP
         uses: actions/upload-artifact@v4
         with:
